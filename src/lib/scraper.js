@@ -1,0 +1,330 @@
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+
+const OTAKUDESU_URL = 'https://otakudesu.blog';
+
+async function fetchHTML(url) {
+  try {
+    const { data } = await axios.get(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+      timeout: 15000,
+    });
+    return cheerio.load(data);
+  } catch (error) {
+    console.error(`Error fetching ${url}:`, error.message);
+    return null;
+  }
+}
+
+// Get ongoing anime list
+export async function getOngoingAnime(page = 1) {
+  const url = `${OTAKUDESU_URL}/ongoing-anime/page/${page}/`;
+  const $ = await fetchHTML(url);
+  if (!$) return { anime: [], hasNext: false };
+
+  const anime = [];
+
+  $('.venz ul li').each((_, el) => {
+    const $el = $(el);
+    const title = $el.find('.thumbz h2.jdlflm').text().trim();
+    const image = $el.find('.thumbz img').attr('src') || '';
+    const link = $el.find('.thumb a').attr('href') || '';
+    const episode = $el.find('.epz').text().trim();
+    const day = $el.find('.epztipe').text().trim();
+    const date = $el.find('.newnime').text().trim();
+    const slug = link.split('/').filter(Boolean).pop() || '';
+
+    if (title) {
+      anime.push({ title, image, slug, episode, day, date, link });
+    }
+  });
+
+  const hasNext = $('.pagenavix .next').length > 0;
+  return { anime, hasNext };
+}
+
+// Get completed anime
+export async function getCompletedAnime(page = 1) {
+  const url = `${OTAKUDESU_URL}/complete-anime/page/${page}/`;
+  const $ = await fetchHTML(url);
+  if (!$) return { anime: [], hasNext: false };
+
+  const anime = [];
+
+  $('.venz ul li').each((_, el) => {
+    const $el = $(el);
+    const title = $el.find('.thumbz h2.jdlflm').text().trim();
+    const image = $el.find('.thumbz img').attr('src') || '';
+    const link = $el.find('.thumb a').attr('href') || '';
+    const episode = $el.find('.epz').text().trim();
+    const score = $el.find('.epztipe').text().trim();
+    const date = $el.find('.newnime').text().trim();
+    const slug = link.split('/').filter(Boolean).pop() || '';
+
+    if (title) {
+      anime.push({ title, image, slug, episode, score, date, link });
+    }
+  });
+
+  const hasNext = $('.pagenavix .next').length > 0;
+  return { anime, hasNext };
+}
+
+// Get anime detail
+export async function getAnimeDetail(slug) {
+  const url = `${OTAKUDESU_URL}/anime/${slug}/`;
+  const $ = await fetchHTML(url);
+  if (!$) return null;
+
+  const title = $('.infozingle span:contains("Judul")').parent().text().replace('Judul: ', '').trim()
+    || $('.jdlrx h1').text().trim();
+  const japaneseTitle = $('.infozingle span:contains("Japanese")').parent().text().replace('Japanese: ', '').trim();
+  const score = $('.infozingle span:contains("Skor")').parent().text().replace('Skor: ', '').trim();
+  const producer = $('.infozingle span:contains("Produser")').parent().text().replace('Produser: ', '').trim();
+  const type = $('.infozingle span:contains("Tipe")').parent().text().replace('Tipe: ', '').trim();
+  const status = $('.infozingle span:contains("Status")').parent().text().replace('Status: ', '').trim();
+  const totalEpisode = $('.infozingle span:contains("Total Episode")').parent().text().replace('Total Episode: ', '').trim();
+  const duration = $('.infozingle span:contains("Durasi")').parent().text().replace('Durasi: ', '').trim();
+  const releaseDate = $('.infozingle span:contains("Tanggal Rilis")').parent().text().replace('Tanggal Rilis: ', '').trim();
+  const studio = $('.infozingle span:contains("Studio")').parent().text().replace('Studio: ', '').trim();
+
+  const image = $('.fotoanime img').attr('src') || '';
+  const synopsis = $('.sinopc p').text().trim();
+
+  const genres = [];
+  $('.infozingle span:contains("Genre")').parent().find('a').each((_, el) => {
+    genres.push({
+      name: $(el).text().trim(),
+      link: $(el).attr('href') || '',
+    });
+  });
+
+  const episodes = [];
+  $('.episodelist ul li').each((_, el) => {
+    const $el = $(el);
+    const epTitle = $el.find('a').text().trim();
+    const epLink = $el.find('a').attr('href') || '';
+    const epDate = $el.find('.zemark').text().trim();
+    const epSlug = epLink.split('/').filter(Boolean).pop() || '';
+
+    if (epTitle) {
+      episodes.push({ title: epTitle, slug: epSlug, date: epDate, link: epLink });
+    }
+  });
+
+  return {
+    title: title || slug.replace(/-/g, ' '),
+    japaneseTitle, image, score, producer, type, status,
+    totalEpisode, duration, releaseDate, studio, genres, synopsis,
+    episodes: episodes.reverse(),
+    slug,
+  };
+}
+
+// Get episode streaming links
+export async function getEpisodeStreaming(slug) {
+  const url = `${OTAKUDESU_URL}/episode/${slug}/`;
+  const $ = await fetchHTML(url);
+  if (!$) return null;
+
+  const title = $('.posttl').text().trim() || $('h1.entry-title').text().trim();
+
+  const animeLink = $('.flir a:contains("See All Episodes")').attr('href')
+    || $('.naveps .flir a').last().attr('href') || '';
+  const animeSlug = animeLink.split('/anime/').pop()?.replace(/\//g, '') || '';
+
+  const prevEp = $('.flir a:first-child').attr('href') || '';
+  const nextEp = $('.flir a:last-child').attr('href') || '';
+  const prevSlug = prevEp.includes('/episode/') ? prevEp.split('/episode/').pop()?.replace(/\//g, '') : '';
+  const nextSlug = nextEp.includes('/episode/') ? nextEp.split('/episode/').pop()?.replace(/\//g, '') : '';
+
+  const mirrors = [];
+
+  $('.mirorstream ul li a').each((_, el) => {
+    const $el = $(el);
+    const quality = $el.closest('ul').prev('label').text().trim() || 'Default';
+    const serverName = $el.text().trim();
+    const dataContent = $el.attr('data-content') || '';
+
+    if (dataContent) {
+      try {
+        const decoded = Buffer.from(dataContent, 'base64').toString('utf-8');
+        const $decoded = cheerio.load(decoded);
+        const iframeSrc = $decoded('iframe').attr('src') || '';
+
+        if (iframeSrc) {
+          mirrors.push({
+            quality,
+            server: serverName,
+            url: iframeSrc.startsWith('//') ? `https:${iframeSrc}` : iframeSrc,
+          });
+        }
+      } catch (e) {
+        console.error('Error decoding mirror:', e.message);
+      }
+    }
+  });
+
+  if (mirrors.length === 0) {
+    const directIframe = $('#lightsVideo iframe, .responsive-player iframe, #pembed iframe').attr('src');
+    if (directIframe) {
+      mirrors.push({
+        quality: 'Default',
+        server: 'Server 1',
+        url: directIframe.startsWith('//') ? `https:${directIframe}` : directIframe,
+      });
+    }
+  }
+
+  const downloads = [];
+  $('.download ul li').each((_, el) => {
+    const $el = $(el);
+    const quality = $el.find('strong').text().trim();
+    const links = [];
+
+    $el.find('a').each((_, a) => {
+      links.push({
+        server: $(a).text().trim(),
+        url: $(a).attr('href') || '',
+      });
+    });
+
+    if (quality && links.length) {
+      downloads.push({ quality, links });
+    }
+  });
+
+  return { title, slug, animeSlug, prevSlug, nextSlug, mirrors, downloads };
+}
+
+// Search anime
+export async function searchAnime(query) {
+  const url = `${OTAKUDESU_URL}/?s=${encodeURIComponent(query)}&post_type=anime`;
+  const $ = await fetchHTML(url);
+  if (!$) return [];
+
+  const results = [];
+
+  $('ul.chi_archive li').each((_, el) => {
+    const $el = $(el);
+    const title = $el.find('h2 a').text().trim();
+    const link = $el.find('h2 a').attr('href') || '';
+    const image = $el.find('img').attr('src') || '';
+    const genres = $el.find('.set b:contains("Genres")').parent().text().replace('Genres : ', '').trim();
+    const status = $el.find('.set b:contains("Status")').parent().text().replace('Status : ', '').trim();
+    const score = $el.find('.set b:contains("Rating")').parent().text().replace('Rating : ', '').trim();
+    const slug = link.split('/anime/').pop()?.replace(/\//g, '') || '';
+
+    if (title) {
+      results.push({ title, image, slug, genres, status, score, link });
+    }
+  });
+
+  return results;
+}
+
+// Get release schedule (jadwal rilis) — grouped by day of week
+export async function getSchedule() {
+  const url = `${OTAKUDESU_URL}/jadwal-rilis/`;
+  const $ = await fetchHTML(url);
+  if (!$) return [];
+
+  const days = [];
+  $('.kgjdwl321 .kglist321').each((_, el) => {
+    const $el = $(el);
+    const day = $el.find('h2').text().trim();
+    const list = [];
+    $el.find('ul li a').each((_, a) => {
+      const $a = $(a);
+      const title = $a.text().trim();
+      const link = $a.attr('href') || '';
+      const slug = link.split('/anime/').pop()?.replace(/\//g, '') || '';
+      if (title) list.push({ title, slug, link });
+    });
+    if (day && list.length) days.push({ day, anime: list });
+  });
+  return days;
+}
+
+// Get full genre list
+export async function getGenreList() {
+  const url = `${OTAKUDESU_URL}/genre-list/`;
+  const $ = await fetchHTML(url);
+  if (!$) return [];
+
+  const genres = [];
+  const seen = new Set();
+  $('.genres ul.genres li a, .genres a, ul.genres li a').each((_, el) => {
+    const $el = $(el);
+    const name = $el.text().trim();
+    const link = $el.attr('href') || '';
+    const slug = link.split('/genres/').pop()?.replace(/\//g, '') || '';
+    if (name && slug && !seen.has(slug)) {
+      seen.add(slug);
+      genres.push({ name, slug, link });
+    }
+  });
+
+  if (genres.length === 0) {
+    const fallback = [
+      'Action', 'Adventure', 'Comedy', 'Demons', 'Drama', 'Ecchi', 'Fantasy',
+      'Game', 'Harem', 'Historical', 'Horror', 'Isekai', 'Josei', 'Magic',
+      'Martial Arts', 'Mecha', 'Military', 'Music', 'Mystery', 'Parody',
+      'Police', 'Psychological', 'Romance', 'Samurai', 'School', 'Sci-Fi',
+      'Seinen', 'Shoujo', 'Shounen', 'Slice of Life', 'Space', 'Sports',
+      'Super Power', 'Supernatural', 'Thriller', 'Vampire',
+    ];
+    return fallback.map((name) => ({
+      name,
+      slug: name.toLowerCase().replace(/\s+/g, '-'),
+      link: `${OTAKUDESU_URL}/genres/${name.toLowerCase().replace(/\s+/g, '-')}/`,
+    }));
+  }
+
+  return genres;
+}
+
+// Get a random anime slug from the latest ongoing + completed pool
+export async function getRandomAnimeSlug() {
+  const [ongoing, completed] = await Promise.all([
+    getOngoingAnime(1),
+    getCompletedAnime(1),
+  ]);
+  const pool = [...(ongoing.anime || []), ...(completed.anime || [])]
+    .map((a) => a.slug)
+    .filter(Boolean);
+  if (pool.length === 0) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Get anime by genre
+export async function getAnimeByGenre(genre, page = 1) {
+  const url = `${OTAKUDESU_URL}/genres/${genre}/page/${page}/`;
+  const $ = await fetchHTML(url);
+  if (!$) return { anime: [], hasNext: false };
+
+  const anime = [];
+
+  $('.col-anime .col-anime-con').each((_, el) => {
+    const $el = $(el);
+    const title = $el.find('.col-anime-title a').text().trim();
+    const link = $el.find('.col-anime-title a').attr('href') || '';
+    const image = $el.find('.col-anime-cover img').attr('src') || '';
+    const studio = $el.find('.col-anime-studio').text().trim();
+    const episodes = $el.find('.col-anime-eps').text().trim();
+    const score = $el.find('.col-anime-rating').text().trim();
+    const slug = link.split('/anime/').pop()?.replace(/\//g, '') || '';
+
+    if (title) {
+      anime.push({ title, image, slug, studio, episodes, score, link });
+    }
+  });
+
+  const hasNext = $('.pagenavix .next').length > 0;
+  return { anime, hasNext };
+}
