@@ -34,3 +34,11 @@ Buka [http://localhost:3000](http://localhost:3000).
 npm run build
 npm start
 ```
+
+## Deploy
+
+Sudah terdeploy di **Vercel**:
+
+🔗 [**web-anime-taupe.vercel.app**](https://web-anime-taupe.vercel.app)
+
+Setiap push ke `master` otomatis di-deploy ulang.
