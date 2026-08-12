@@ -18,17 +18,39 @@ function isValidSourceHtml(html) {
 }
 
 function getFallbackEpisode(slug) {
-  if (slug !== 'sakh-episode-6-sub-indo') return null;
+  const vidhideEmbeds = {
+    'sakh-episode-1-sub-indo': 'https://odvidhide.com/embed/maoa5hb0nete',
+    'sakh-episode-2-sub-indo': 'https://odvidhide.com/embed/j05lnojp5037',
+    'sakh-episode-3-sub-indo': 'https://odvidhide.com/embed/pjty4tfwitto',
+    'sakh-episode-4-sub-indo': 'https://odvidhide.com/embed/sjj0r88xcrvu',
+    'sakh-episode-5-sub-indo': 'https://odvidhide.com/embed/7rskzeo2p9ss',
+  };
 
-  const source = 'https://archive.org/download/teror-mulai-berdatangan-seb/Otakudesu.io_SaKH--06_720p.mp4';
-  const url = `/api/media?kind=video&url=${encodeURIComponent(source)}`;
+  if (slug === 'sakh-episode-6-sub-indo') {
+    const source = 'https://archive.org/download/teror-mulai-berdatangan-seb/Otakudesu.io_SaKH--06_720p.mp4';
+    const url = `/api/media?kind=video&url=${encodeURIComponent(source)}`;
+    return {
+      title: 'Sora wa Akai Kawa no Hotori Episode 6 Subtitle Indonesia',
+      slug,
+      animeSlug: 'sora-akai-kawa-hotori-sub-indo',
+      prevSlug: 'sakh-episode-5-sub-indo',
+      nextSlug: '',
+      mirrors: [{ quality: '720p', server: 'Archive', url, player: 'direct' }],
+      downloads: [],
+    };
+  }
+
+  const iframe = vidhideEmbeds[slug];
+  if (!iframe) return null;
+
+  const episodeNumber = slug.match(/episode-(\d+)/)?.[1] || '';
   return {
-    title: 'Sora wa Akai Kawa no Hotori Episode 6 Subtitle Indonesia',
+    title: `Sora wa Akai Kawa no Hotori Episode ${episodeNumber} Subtitle Indonesia`,
     slug,
     animeSlug: 'sora-akai-kawa-hotori-sub-indo',
-    prevSlug: 'sakh-episode-5-sub-indo',
-    nextSlug: '',
-    mirrors: [{ quality: '720p', server: 'Archive', url, player: 'direct' }],
+    prevSlug: episodeNumber === '1' ? '' : `sakh-episode-${Number(episodeNumber) - 1}-sub-indo`,
+    nextSlug: episodeNumber === '5' ? 'sakh-episode-6-sub-indo' : `sakh-episode-${Number(episodeNumber) + 1}-sub-indo`,
+    mirrors: [{ quality: '720p', server: 'vidhide', url: iframe, player: 'embed' }],
     downloads: [],
   };
 }
