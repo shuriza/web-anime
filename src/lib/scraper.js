@@ -18,30 +18,53 @@ function isValidSourceHtml(html) {
 }
 
 function getFallbackEpisode(slug) {
-  const vidhideEmbeds = {
-    'sakh-episode-1-sub-indo': 'https://odvidhide.com/embed/maoa5hb0nete',
-    'sakh-episode-2-sub-indo': 'https://odvidhide.com/embed/j05lnojp5037',
-    'sakh-episode-3-sub-indo': 'https://odvidhide.com/embed/pjty4tfwitto',
-    'sakh-episode-4-sub-indo': 'https://odvidhide.com/embed/sjj0r88xcrvu',
-    'sakh-episode-5-sub-indo': 'https://odvidhide.com/embed/7rskzeo2p9ss',
+  const fallbackMirrors = {
+    'sakh-episode-1-sub-indo': [
+      ['ondesuhd', 'https://desustream.net/dstream/ondesu/new/hd/index.php?id=cnkvR3dxVmJjNFZNNGhyb0FtNzQwZz09'],
+      ['odstream', 'https://desustream.net/dstream/arcg/?id=dFpnRmxLUStDM1huSjRHVzh0SmJKQUZ4TVg5dndHNVZSOXNxOWJGRERDUmhaRFhoMllYY1pISktuYTJSNURQQg=='],
+      ['filedon', 'https://filedon.co/embed/JfTQ5I3gIM'],
+      ['vidhide', 'https://odvidhide.com/embed/maoa5hb0nete'],
+      ['mega', 'https://mega.nz/embed/NqwikKxY#ib2Kz87rn8hP7hJ-mzuUY0bLJm3t7uVIw1vX9xtgqfs'],
+    ],
+    'sakh-episode-2-sub-indo': [
+      ['ondesuhd', 'https://desustream.net/dstream/ondesu/new/hd/index.php?id=Q3RGTlcxUXZnbTczdWVUTmdzWjdnZz09'],
+      ['odstream', 'https://desustream.net/dstream/arcg/?id=WUJ3VXVUR1JQNVFSNkZCOUMxRy9DaWN2N2JTRGhoMXZTWEd2M2RPMUhkK2gwVkJOb0VhZ3lHTTFLdEZJQ0dyVQ=='],
+      ['filedon', 'https://filedon.co/embed/vNKqV2evaF'],
+      ['vidhide', 'https://odvidhide.com/embed/j05lnojp5037'],
+      ['mega', 'https://mega.nz/embed/Zz01ySyY#7Czf8IUFV1u6YLcs04T9p8CFjN_GWKbczQRmcrVcbG8'],
+    ],
+    'sakh-episode-3-sub-indo': [
+      ['ondesu2hd', 'https://desustream.net/dstream/ondesu2/new/hd/index.php?id=bktEMmMyRGI0Nkl5OENWc2tpN0k4M3BuVm1vdHo2bGFYTTVGT0RjUGNUdz0='],
+      ['odstream', 'https://desustream.net/dstream/arcg/?id=b1gweDdSSHBUbzdXU1lkU2lXUVR6b2FjdVczZDlWQ05EWWNJNHppRytHdGhIWVMwcVVxSDdxTktjZERKQVc1QlF1S2F1bUVHVkFVakhQZTRPaHk3V1E9PQ=='],
+      ['filedon', 'https://filedon.co/embed/XW6LqK9sWp'],
+      ['vidhide', 'https://odvidhide.com/embed/pjty4tfwitto'],
+      ['mega', 'https://mega.nz/embed/RNdnFRxB#0l14SVwcpfVr38vMwy0qwhUXzPWOK21P_3zLKsH7vNo'],
+    ],
+    'sakh-episode-4-sub-indo': [
+      ['ondesu2hd', 'https://desustream.net/dstream/ondesu2/new/hd/index.php?id=dk9VUFppTTYxcDZBcmFqQW5Od2xBZkhXQUFqdUFCUGpCYWFKTS9DVGtNYz0='],
+      ['odstream', 'https://desustream.net/dstream/arcg/?id=T1p4N1kyNzZ6NW9lNS9aOTUrVEhkVS9BNGZKYnhtSWRGQm9MNzVIWDM0NitGN1UybUhKVThybVR1MmErcDJJbDRXRWhPNlp3MzdXdUNHOENNV3J6Wmc9PQ=='],
+      ['filedon', 'https://filedon.co/embed/DXoVnCyBld'],
+      ['vidhide', 'https://odvidhide.com/embed/sjj0r88xcrvu'],
+      ['mega', 'https://mega.nz/embed/VQ0EHSAK#eeNy8GqjFjsuHXUZ3Vrkg-on-QE3sVfW9wWUOaNkIQk'],
+    ],
+    'sakh-episode-5-sub-indo': [
+      ['odstream', 'https://desustream.net/dstream/arcg/?id=bG1mY2owK2dsOG9mL2srN2RPdm13V1g2RG1FbjczZjNpWGNqT0MvTmdYbGJ6Q21KK0VjczIySDFxQXpJWGRQbFc4czlOa2FDREpvSW5xV2Y2VTNsNWc9PQ=='],
+      ['ondesuhd', 'https://desustream.net/dstream/ondesu/new/hd/index.php?id=L1hSSmcxZkgzbG5HWHZQcFpWNndqQT09'],
+      ['filedon', 'https://filedon.co/embed/2aSeevUA4E'],
+      ['vidhide', 'https://odvidhide.com/embed/7rskzeo2p9ss'],
+      ['mega', 'https://mega.nz/embed/neQ2nRyC#wzBzZFyaGXSKAhpvtpHPO7hURCMXETRo3bY01MRcAEI'],
+    ],
+    'sakh-episode-6-sub-indo': [
+      ['ondesu2hd', 'https://desustream.net/dstream/ondesu2/new/hd/index.php?id=SnVJaXZPdkttT3IrM0tzeVBGSFQySUZuNFQ3Q01aUGpMbzZwL3g3d1ZMMD0='],
+      ['odstream', 'https://desustream.net/dstream/arcg/?id=OVlkSm5uQ0xaOHgzKzVYOUtUSWkzT2RQQ1NycFJvdTVQR3dlK0UwaWd4TEF0ZklZNlJMUW52QjJsVkh2aS9PekREUi9lUGlrd3Q0SUJtb0xoajVmUVE9PQ=='],
+      ['filedon', 'https://filedon.co/embed/jRH3FEelp9'],
+      ['vidhide', 'https://odvidhide.com/embed/q0ze13gx9bys'],
+      ['mega', 'https://mega.nz/embed/ZiFlEI5R#m64VON04FFxsDil7AAJfpqvjT4RqWOmesNQf7JkqAYQ'],
+    ],
   };
 
-  if (slug === 'sakh-episode-6-sub-indo') {
-    const source = 'https://archive.org/download/teror-mulai-berdatangan-seb/Otakudesu.io_SaKH--06_720p.mp4';
-    const url = `/api/media?kind=video&url=${encodeURIComponent(source)}`;
-    return {
-      title: 'Sora wa Akai Kawa no Hotori Episode 6 Subtitle Indonesia',
-      slug,
-      animeSlug: 'sora-akai-kawa-hotori-sub-indo',
-      prevSlug: 'sakh-episode-5-sub-indo',
-      nextSlug: '',
-      mirrors: [{ quality: '720p', server: 'Archive', url, player: 'direct' }],
-      downloads: [],
-    };
-  }
-
-  const iframe = vidhideEmbeds[slug];
-  if (!iframe) return null;
+  const mirrors = fallbackMirrors[slug];
+  if (!mirrors) return null;
 
   const episodeNumber = slug.match(/episode-(\d+)/)?.[1] || '';
   return {
@@ -50,7 +73,7 @@ function getFallbackEpisode(slug) {
     animeSlug: 'sora-akai-kawa-hotori-sub-indo',
     prevSlug: episodeNumber === '1' ? '' : `sakh-episode-${Number(episodeNumber) - 1}-sub-indo`,
     nextSlug: episodeNumber === '5' ? 'sakh-episode-6-sub-indo' : `sakh-episode-${Number(episodeNumber) + 1}-sub-indo`,
-    mirrors: [{ quality: '720p', server: 'vidhide', url: iframe, player: 'embed' }],
+    mirrors: mirrors.map(([server, url]) => ({ quality: '720p', server, url, player: 'embed' })),
     downloads: [],
   };
 }
