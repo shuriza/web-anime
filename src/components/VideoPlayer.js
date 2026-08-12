@@ -1,6 +1,7 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
-import { Monitor, AlertCircle, Sparkles, Play, Film, ChevronRight } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { Monitor, AlertCircle, Sparkles, Play, Film, ChevronRight, Loader2 } from 'lucide-react';
+import Hls from 'hls.js';
 
 function qualityRank(q) {
   const m = String(q || '').match(/(\d+)\s*p?/i);
@@ -29,6 +30,119 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
   const [selectedQuality, setSelectedQuality] = useState(grouped[0]?.quality || '');
   const [selectedServer, setSelectedServer] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [resolvedUrl, setResolvedUrl] = useState('');
+  const [resolvedPlayer, setResolvedPlayer] = useState('embed');
+  const [resolving, setResolving] = useState(false);
+  const [mirrorError, setMirrorError] = useState('');
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
+
+  const handleVideoError = useCallback(() => {
+    setMirrorError('Video gagal diputar oleh browser. Coba pilih server lain.');
+  }, []);
+
+  const activeGroup = grouped.find((g) => g.quality === selectedQuality) || grouped[0];
+  const activeServers = activeGroup?.items || [];
+  const currentMirror = activeServers[selectedServer] || activeServers[0];
+  const isHighest = activeGroup === grouped[0];
+
+  const resolveMirror = useCallback(async (mirror) => {
+    if (!mirror) return;
+    setResolving(true);
+    setMirrorError('');
+    setResolvedUrl('');
+    setResolvedPlayer('embed');
+
+    if (mirror.url) {
+      setResolvedUrl(mirror.url);
+      setResolvedPlayer(mirror.player || 'embed');
+      setResolving(false);
+      return;
+    }
+
+    if (!mirror.payload) {
+      setResolvedUrl('');
+      setMirrorError('Source video tidak tersedia untuk mirror ini.');
+      setResolving(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/mirror', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: mirror.payload }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || 'Gagal memuat video.');
+      }
+      setResolvedUrl(data.url);
+      setResolvedPlayer(data.player || 'embed');
+    } catch (e) {
+      setResolvedUrl('');
+      setMirrorError(e.message || 'Gagal memuat video. Coba pilih server lain.');
+    } finally {
+      setResolving(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || resolvedPlayer !== 'hls' || !resolvedUrl) return undefined;
+
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = resolvedUrl;
+      return () => {
+        video.removeAttribute('src');
+        video.load();
+      };
+    }
+
+    if (!Hls.isSupported()) {
+      setMirrorError('Browser ini tidak mendukung pemutaran HLS.');
+      return undefined;
+    }
+
+    const inheritedQuery = new URL(resolvedUrl).search;
+    const BaseLoader = Hls.DefaultConfig.loader;
+    class QueryPreservingLoader extends BaseLoader {
+      load(context, config, callbacks) {
+        const requestUrl = new URL(context.url, resolvedUrl);
+        if (!requestUrl.search && inheritedQuery) {
+          requestUrl.search = inheritedQuery;
+          context.url = requestUrl.toString();
+        }
+        super.load(context, config, callbacks);
+      }
+    }
+
+    const hls = new Hls({
+      enableWorker: true,
+      loader: QueryPreservingLoader,
+      fLoader: QueryPreservingLoader,
+    });
+    hlsRef.current = hls;
+    hls.loadSource(resolvedUrl);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) setMirrorError('Stream HLS gagal dimuat. Coba mirror lain.');
+    });
+
+    return () => {
+      hls.destroy();
+      hlsRef.current = null;
+    };
+  }, [resolvedPlayer, resolvedUrl]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      resolveMirror(currentMirror);
+    } else {
+      setResolvedUrl('');
+      setResolvedPlayer('embed');
+    }
+  }, [isPlaying, currentMirror, resolveMirror]);
 
   useEffect(() => {
     setSelectedServer(0);
@@ -39,6 +153,8 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
     setIsPlaying(false);
     setSelectedQuality(grouped[0]?.quality || '');
     setSelectedServer(0);
+    setResolvedUrl('');
+    setResolvedPlayer('embed');
   }, [mirrors]);
 
   if (!mirrors.length) {
@@ -52,11 +168,6 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
       </div>
     );
   }
-
-  const activeGroup = grouped.find((g) => g.quality === selectedQuality) || grouped[0];
-  const activeServers = activeGroup?.items || [];
-  const currentMirror = activeServers[selectedServer] || activeServers[0];
-  const isHighest = activeGroup === grouped[0];
 
   const handlePlay = () => {
     setIsPlaying(true);
@@ -188,10 +299,35 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
           {/* Video Container */}
           <div className="bg-black rounded-2xl overflow-hidden glow-purple">
             <div className="video-container">
-              {currentMirror?.url ? (
+              {resolving ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-300">
+                  <Loader2 size={32} className="animate-spin text-accent" />
+                  <span className="text-sm">Memuat source video...</span>
+                </div>
+              ) : mirrorError ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
+                  <AlertCircle size={36} className="text-red-400" />
+                  <p className="text-red-300 text-sm font-medium">{mirrorError}</p>
+                  <p className="text-gray-500 text-xs">
+                    Coba pilih server atau kualitas lain.
+                  </p>
+                </div>
+              ) : resolvedUrl && (resolvedPlayer === 'direct' || resolvedPlayer === 'hls') ? (
+                <video
+                  ref={videoRef}
+                  key={`${resolvedPlayer}-${resolvedUrl}`}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  src={resolvedPlayer === 'direct' ? resolvedUrl : undefined}
+                  onError={handleVideoError}
+                  title={title}
+                  className="h-full w-full rounded-2xl"
+                />
+              ) : resolvedUrl ? (
                 <iframe
-                  key={currentMirror.url}
-                  src={currentMirror.url}
+                  key={resolvedUrl}
+                  src={resolvedUrl}
                   allowFullScreen
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   referrerPolicy="no-referrer"

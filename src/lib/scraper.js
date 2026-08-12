@@ -145,29 +145,46 @@ export async function getEpisodeStreaming(slug) {
 
   const mirrors = [];
 
-  $('.mirorstream ul li a').each((_, el) => {
-    const $el = $(el);
-    const quality = $el.closest('ul').prev('label').text().trim() || 'Default';
-    const serverName = $el.text().trim();
-    const dataContent = $el.attr('data-content') || '';
+  $('.mirrorstream ul').each((_, ulEl) => {
+    const $ul = $(ulEl);
 
-    if (dataContent) {
+    let quality = ($ul.attr('class') || '').match(/m(\d+p)/i)?.[1] || '';
+    if (!quality) {
+      const text = $ul.text().trim();
+      const m = text.match(/(\d{3,4})\s*p/i);
+      if (m) quality = `${m[1]}p`;
+    }
+    const label = $ul.prev('label').text().trim();
+    quality = quality || label || 'Default';
+
+    $ul.find('li a[data-content]').each((_, el) => {
+      const $el = $(el);
+      const serverName = $el.text().trim();
+      const dataContent = $el.attr('data-content') || '';
+
       try {
-        const decoded = Buffer.from(dataContent, 'base64').toString('utf-8');
-        const $decoded = cheerio.load(decoded);
-        const iframeSrc = $decoded('iframe').attr('src') || '';
+        const decoded = Buffer.from(dataContent, 'base64').toString('utf-8').trim();
 
-        if (iframeSrc) {
-          mirrors.push({
-            quality,
-            server: serverName,
-            url: iframeSrc.startsWith('//') ? `https:${iframeSrc}` : iframeSrc,
-          });
+        if (decoded.startsWith('{')) {
+          const payload = JSON.parse(decoded);
+          if (payload.id != null && payload.q) {
+            mirrors.push({ quality, server: serverName || 'Server 1', payload: dataContent });
+          }
+        } else {
+          const $decoded = cheerio.load(decoded);
+          const iframeSrc = $decoded('iframe').attr('src') || '';
+          if (iframeSrc) {
+            mirrors.push({
+              quality,
+              server: serverName || 'Server 1',
+              url: iframeSrc.startsWith('//') ? `https:${iframeSrc}` : iframeSrc,
+            });
+          }
         }
       } catch (e) {
         console.error('Error decoding mirror:', e.message);
       }
-    }
+    });
   });
 
   if (mirrors.length === 0) {
