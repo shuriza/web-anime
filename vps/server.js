@@ -119,15 +119,39 @@ function mediaHeaders(kind, source, contentLength) {
   return headers;
 }
 
-function streamMedia(targetUrl, request, response, kind) {
+function streamMedia(targetUrl, request, response, kind, redirects = 0) {
+  if (redirects > 5) {
+    sendJson(response, 502, { error: 'Terlalu banyak redirect media.' });
+    return;
+  }
+
   const headers = { 'User-Agent': UA_MEDIA };
   if (request.headers.range) headers.Range = request.headers.range;
   if (targetUrl.hostname.toLowerCase().endsWith('.acek-cdn.com')) {
     headers.Referer = 'https://odvidhide.com/';
   }
 
-  const proxyReq = https.request(targetUrl, { headers, method: 'GET' }, (proxyRes) => {
+  const mod = targetUrl.protocol === 'https:' ? https : http;
+  const proxyReq = mod.request(targetUrl, { headers, method: 'GET' }, (proxyRes) => {
     const status = proxyRes.statusCode || 0;
+
+    if (status >= 300 && status < 400 && proxyRes.headers.location) {
+      proxyRes.resume();
+      let next;
+      try {
+        next = new URL(proxyRes.headers.location, targetUrl);
+      } catch {
+        sendJson(response, 502, { error: 'Redirect media tidak valid.' });
+        return;
+      }
+      if (!isAllowedMediaHost(next.hostname.toLowerCase())) {
+        sendJson(response, 403, { error: 'Host media tidak didukung.' });
+        return;
+      }
+      streamMedia(next, request, response, kind, redirects + 1);
+      return;
+    }
+
     if (status >= 400) {
       let body = '';
       proxyRes.setEncoding('utf8');
