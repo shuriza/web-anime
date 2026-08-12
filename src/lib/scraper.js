@@ -2,20 +2,54 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 
 const OTAKUDESU_URL = 'https://otakudesu.blog';
+const SCRAPER_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+  'Accept-Encoding': 'identity',
+};
+
+function isValidSourceHtml(html) {
+  return typeof html === 'string'
+    && html.length > 1000
+    && /<html|<!doctype/i.test(html)
+    && !/attention required|cloudflare|captcha|just a moment/i.test(html);
+}
 
 async function fetchHTML(url) {
+  const fetchAttempt = (targetUrl = url) => fetch(targetUrl, {
+    headers: SCRAPER_HEADERS,
+    redirect: 'follow',
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.text();
+  }).then((html) => {
+    if (!isValidSourceHtml(html)) throw new Error('HTML sumber tidak valid.');
+    return html;
+  });
+
   try {
-    const { data } = await axios.get(url, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
-      timeout: 15000,
-    });
-    return cheerio.load(data);
+    const html = await Promise.any([
+      axios.get(url, { headers: SCRAPER_HEADERS, timeout: 8000 }).then(({ data }) => {
+        if (!isValidSourceHtml(data)) throw new Error('HTML sumber tidak valid.');
+        return data;
+      }),
+      fetchAttempt(),
+    ]);
+    return cheerio.load(html);
   } catch (error) {
+    if (url.startsWith('https://')) {
+      try {
+        const httpUrl = `http://${url.slice('https://'.length)}`;
+        return cheerio.load(await fetchAttempt(httpUrl));
+      } catch (fallbackError) {
+        console.error(`Error fetching ${url}:`, fallbackError.message);
+        return null;
+      }
+    }
     console.error(`Error fetching ${url}:`, error.message);
     return null;
   }
