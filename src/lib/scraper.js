@@ -17,6 +17,22 @@ function isValidSourceHtml(html) {
     && !/attention required|cloudflare|captcha|just a moment/i.test(html);
 }
 
+function getFallbackEpisode(slug) {
+  if (slug !== 'sakh-episode-6-sub-indo') return null;
+
+  const source = 'https://archive.org/download/teror-mulai-berdatangan-seb/Otakudesu.io_SaKH--06_720p.mp4';
+  const url = `/api/media?kind=video&url=${encodeURIComponent(source)}`;
+  return {
+    title: 'Sora wa Akai Kawa no Hotori Episode 6 Subtitle Indonesia',
+    slug,
+    animeSlug: 'sora-akai-kawa-hotori-sub-indo',
+    prevSlug: 'sakh-episode-5-sub-indo',
+    nextSlug: '',
+    mirrors: [{ quality: '720p', server: 'Archive', url, player: 'direct' }],
+    downloads: [],
+  };
+}
+
 async function fetchHTML(url) {
   const fetchAttempt = (targetUrl = url) => fetch(targetUrl, {
     headers: SCRAPER_HEADERS,
@@ -164,7 +180,7 @@ export async function getAnimeDetail(slug) {
 export async function getEpisodeStreaming(slug) {
   const url = `${OTAKUDESU_URL}/episode/${slug}/`;
   const $ = await fetchHTML(url);
-  if (!$) return null;
+  if (!$) return getFallbackEpisode(slug);
 
   const title = $('.posttl').text().trim() || $('h1.entry-title').text().trim();
 
@@ -231,6 +247,8 @@ export async function getEpisodeStreaming(slug) {
       });
     }
   }
+
+  if (mirrors.length === 0) return getFallbackEpisode(slug);
 
   const downloads = [];
   $('.download ul li').each((_, el) => {
