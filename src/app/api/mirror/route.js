@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-const OTAKUDESU_ORIGIN = 'https://otakudesu.blog.';
+const OTAKUDESU_ORIGIN = 'https://otakudesu.blog';
 const AJAX_URL = `${OTAKUDESU_ORIGIN}/wp-admin/admin-ajax.php`;
 const NONCE_ACTION = 'aa1208d27f29ca340c92c66d1926f13f';
 const MIRROR_ACTION = '2a3505c93b0035d3f455df82bf976b84';
