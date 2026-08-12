@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-const AJAX_URL = 'https://otakudesu.blog/wp-admin/admin-ajax.php';
+const OTAKUDESU_ORIGIN = 'https://otakudesu.blog.';
+const AJAX_URL = `${OTAKUDESU_ORIGIN}/wp-admin/admin-ajax.php`;
 const NONCE_ACTION = 'aa1208d27f29ca340c92c66d1926f13f';
 const MIRROR_ACTION = '2a3505c93b0035d3f455df82bf976b84';
 const NONCE_TTL = 10 * 60 * 1000;
@@ -133,7 +134,7 @@ function parseFiledonUrl(html) {
 
 async function extractFiledonUrl(embedUrl) {
   const { data: html } = await axios.get(embedUrl, {
-    headers: { 'User-Agent': UA, Referer: 'https://otakudesu.blog/' },
+    headers: { 'User-Agent': UA, Referer: `${OTAKUDESU_ORIGIN}/` },
     timeout: 20000,
   });
   return parseFiledonUrl(html);
@@ -141,7 +142,7 @@ async function extractFiledonUrl(embedUrl) {
 
 async function extractVidhideUrl(embedUrl) {
   const { data: html } = await axios.get(embedUrl, {
-    headers: { 'User-Agent': UA, Referer: 'https://otakudesu.blog/' },
+    headers: { 'User-Agent': UA, Referer: `${OTAKUDESU_ORIGIN}/` },
     timeout: 20000,
   });
   const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
@@ -159,7 +160,7 @@ async function extractVidhideUrl(embedUrl) {
 
 async function extractDesustreamUrl(embedUrl) {
   const { data: html } = await axios.get(embedUrl, {
-    headers: { 'User-Agent': UA, Referer: 'https://otakudesu.blog/' },
+    headers: { 'User-Agent': UA, Referer: `${OTAKUDESU_ORIGIN}/` },
     timeout: 20000,
   });
   const $ = cheerio.load(html);
@@ -174,8 +175,8 @@ async function postAjax(data) {
       'User-Agent': UA,
       'X-Requested-With': 'XMLHttpRequest',
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'Origin': 'https://otakudesu.blog',
-      'Referer': 'https://otakudesu.blog/',
+      'Origin': OTAKUDESU_ORIGIN,
+      'Referer': `${OTAKUDESU_ORIGIN}/`,
     },
     timeout: 20000,
   });

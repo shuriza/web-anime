@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-const OTAKUDESU_URL = 'https://otakudesu.blog';
+const OTAKUDESU_URL = 'https://otakudesu.blog.';
 const SCRAPER_HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
