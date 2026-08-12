@@ -11,6 +11,7 @@ function isAllowedHost(hostname) {
     || hostname === 'archive.org'
     || hostname.endsWith('.archive.org')
     || hostname.endsWith('.cloudflarestorage.com')
+    || hostname.endsWith('.acek-cdn.com')
     || hostname.endsWith('.dramiyos-cdn.com')
   );
 }
