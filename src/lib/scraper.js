@@ -340,7 +340,7 @@ export async function searchAnime(query) {
 
   const results = [];
 
-  $('ul.chi_archive li').each((_, el) => {
+  $('ul.chivsrc li, ul.chi_archive li').each((_, el) => {
     const $el = $(el);
     const title = $el.find('h2 a').text().trim();
     const link = $el.find('h2 a').attr('href') || '';
