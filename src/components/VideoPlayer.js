@@ -43,7 +43,10 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
 
   const activeGroup = grouped.find((g) => g.quality === selectedQuality) || grouped[0];
   const activeServers = activeGroup?.items || [];
-  const currentMirror = activeServers[selectedServer] || activeServers[0];
+  const serverOptions = activeServers.length > 1
+    ? activeServers
+    : mirrors.filter((mirror) => qualityLabel(mirror.quality) === (activeGroup?.quality || selectedQuality));
+  const currentMirror = serverOptions[selectedServer] || serverOptions[0];
   const isHighest = activeGroup === grouped[0];
 
   const resolveMirror = useCallback(async (mirror) => {
@@ -218,7 +221,7 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
               </div>
 
               {/* Server Selection (pre-play) */}
-              {activeServers.length > 1 && (
+              {serverOptions.length > 1 && (
                 <div className="mb-5 text-center">
                   <div className="flex items-center justify-center gap-1.5 mb-2">
                     <Monitor size={14} className="text-primary" />
@@ -227,7 +230,7 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
                     </span>
                   </div>
                   <div className="flex flex-wrap justify-center gap-2">
-                    {activeServers.map((mirror, index) => (
+                    {serverOptions.map((mirror, index) => (
                       <button
                         key={`pre-${mirror.url}-${index}`}
                         onClick={() => setSelectedServer(index)}
@@ -343,7 +346,7 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
           </div>
 
           {/* Server Selection (during playback) */}
-          {activeServers.length > 1 && (
+          {serverOptions.length > 1 && (
             <div className="mt-4">
               <div className="flex items-center gap-2 mb-3">
                 <Monitor size={16} className="text-primary" />
@@ -352,7 +355,7 @@ export default function VideoPlayer({ mirrors = [], title = '' }) {
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {activeServers.map((mirror, index) => (
+                {serverOptions.map((mirror, index) => (
                   <button
                     key={`${mirror.url}-${index}`}
                     onClick={() => setSelectedServer(index)}
