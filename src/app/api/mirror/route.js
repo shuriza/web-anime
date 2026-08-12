@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { resolveMirrorPayload } from '@/lib/mirror-resolver';
 
-function proxyUrl(url, kind) {
-  return `/api/media?kind=${kind}&url=${encodeURIComponent(url)}`;
+function vpsMediaUrl(base, url, kind) {
+  return `${base}/media?kind=${kind}&url=${encodeURIComponent(url)}`;
 }
 
 export async function POST(request) {
@@ -55,10 +55,18 @@ export async function POST(request) {
     }
 
     if (player === 'direct') {
-      return NextResponse.json({ url: proxyUrl(url, 'video'), player: 'direct' });
+      const base = remoteApi || '';
+      const resolvedUrl = base
+        ? vpsMediaUrl(base, url, 'video')
+        : `/api/media?kind=video&url=${encodeURIComponent(url)}`;
+      return NextResponse.json({ url: resolvedUrl, player: 'direct' });
     }
     if (player === 'hls') {
-      return NextResponse.json({ url: proxyUrl(url, 'manifest'), player: 'hls' });
+      const base = remoteApi || '';
+      const resolvedUrl = base
+        ? vpsMediaUrl(base, url, 'manifest')
+        : `/api/media?kind=manifest&url=${encodeURIComponent(url)}`;
+      return NextResponse.json({ url: resolvedUrl, player: 'hls' });
     }
     return NextResponse.json({ url, player: 'embed' });
   } catch (error) {

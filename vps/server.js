@@ -1,4 +1,5 @@
 import http from 'node:http';
+import https from 'node:https';
 import {
   getOngoingAnime,
   getCompletedAnime,
@@ -16,6 +17,8 @@ const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '127.0.0.1';
 const API_KEY = process.env.SCRAPER_API_KEY || '';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://web-anime-taupe.vercel.app';
+const UA_MEDIA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const cache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
 
@@ -60,6 +63,128 @@ async function route(requestUrl) {
   return undefined;
 }
 
+function isAllowedMediaHost(hostname) {
+  return (
+    hostname.endsWith('.googlevideo.com')
+    || hostname === 'archive.org'
+    || hostname.endsWith('.archive.org')
+    || hostname.endsWith('.cloudflarestorage.com')
+    || hostname.endsWith('.acek-cdn.com')
+    || hostname.endsWith('.dramiyos-cdn.com')
+  );
+}
+
+function rewriteManifest(manifest, manifestUrl, baseUrl) {
+  const proxy = (value, kind) => {
+    const target = new URL(value, manifestUrl).toString();
+    const url = new URL('/media', baseUrl);
+    url.searchParams.set('kind', kind);
+    url.searchParams.set('url', target);
+    return url.toString();
+  };
+
+  return manifest
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return line;
+
+      if (trimmed.startsWith('#')) {
+        return line.replace(/URI="([^"]+)"/g, (_, value) => `URI="${proxy(value, 'segment')}"`);
+      }
+
+      const kind = /\.m3u8(?:[?#]|$)/i.test(trimmed) ? 'manifest' : 'segment';
+      return line.replace(trimmed, proxy(trimmed, kind));
+    })
+    .join('\n');
+}
+
+function mediaHeaders(kind, source, contentLength) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 'no-store',
+    'Accept-Ranges': 'bytes',
+  };
+
+  if (kind === 'manifest') {
+    headers['Content-Type'] = 'application/vnd.apple.mpegurl';
+  } else {
+    const contentType = source.headers['content-type'] || '';
+    headers['Content-Type'] = contentType.startsWith('video/') ? contentType : 'video/mp4';
+    for (const name of ['content-length', 'content-range']) {
+      const value = contentLength || source.headers[name];
+      if (value) headers[name] = value;
+    }
+  }
+  return headers;
+}
+
+function streamMedia(targetUrl, request, response, kind) {
+  const headers = { 'User-Agent': UA_MEDIA };
+  if (request.headers.range) headers.Range = request.headers.range;
+  if (targetUrl.hostname.toLowerCase().endsWith('.acek-cdn.com')) {
+    headers.Referer = 'https://odvidhide.com/';
+  }
+
+  const proxyReq = https.request(targetUrl, { headers, method: 'GET' }, (proxyRes) => {
+    const status = proxyRes.statusCode || 0;
+    if (status >= 400) {
+      let body = '';
+      proxyRes.setEncoding('utf8');
+      proxyRes.on('data', (chunk) => { body += chunk; });
+      proxyRes.on('end', () => {
+        sendJson(response, 502, { error: `Media source mengembalikan HTTP ${status}.` });
+      });
+      return;
+    }
+
+    if (kind === 'manifest') {
+      let body = '';
+      proxyRes.setEncoding('utf8');
+      proxyRes.on('data', (chunk) => { body += chunk; });
+      proxyRes.on('end', () => {
+        const rewritten = rewriteManifest(body, targetUrl.toString(), `https://${request.headers.host}${request.url}`);
+        response.writeHead(200, mediaHeaders('manifest', proxyRes, null));
+        response.end(rewritten);
+      });
+      return;
+    }
+
+    response.writeHead(status, mediaHeaders(kind, proxyRes, null));
+    proxyRes.pipe(response);
+  });
+
+  proxyReq.on('error', () => {
+    sendJson(response, 502, { error: 'Gagal mengambil media source.' });
+  });
+  proxyReq.end();
+}
+
+function handleMedia(request, response, requestUrl) {
+  const target = requestUrl.searchParams.get('url') || '';
+  const kind = requestUrl.searchParams.get('kind') || 'video';
+
+  if (!target || !['video', 'manifest', 'segment'].includes(kind)) {
+    sendJson(response, 400, { error: 'Media URL tidak valid.' });
+    return;
+  }
+
+  let targetUrl;
+  try {
+    targetUrl = new URL(target);
+  } catch {
+    sendJson(response, 400, { error: 'Media URL tidak valid.' });
+    return;
+  }
+
+  if (targetUrl.protocol !== 'https:' || !isAllowedMediaHost(targetUrl.hostname.toLowerCase())) {
+    sendJson(response, 403, { error: 'Host media tidak didukung.' });
+    return;
+  }
+
+  streamMedia(targetUrl, request, response, kind);
+}
+
 const server = http.createServer(async (request, response) => {
   if (request.method === 'OPTIONS') {
     response.writeHead(204, {
@@ -75,6 +200,11 @@ const server = http.createServer(async (request, response) => {
 
   if (requestUrl.pathname === '/health') {
     sendJson(response, 200, { ok: true, service: 'shurizanime-scraper' });
+    return;
+  }
+
+  if (request.method === 'GET' && requestUrl.pathname === '/media') {
+    handleMedia(request, response, requestUrl);
     return;
   }
 
