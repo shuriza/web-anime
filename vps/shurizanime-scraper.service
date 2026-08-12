@@ -1,0 +1,21 @@
+[Unit]
+Description=ShurizAnime scraper API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shuriza
+WorkingDirectory=/opt/shurizanime
+EnvironmentFile=/etc/shurizanime/scraper.env
+ExecStart=/usr/bin/node /opt/shurizanime/vps/server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/shurizanime
+
+[Install]
+WantedBy=multi-user.target

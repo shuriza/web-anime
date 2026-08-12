@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { fetchRemote } from './vps-client.js';
 
 const OTAKUDESU_URL = 'https://otakudesu.blog.';
 const SCRAPER_HEADERS = {
@@ -118,6 +119,9 @@ async function fetchHTML(url) {
 
 // Get ongoing anime list
 export async function getOngoingAnime(page = 1) {
+  const remote = await fetchRemote(`/ongoing?page=${page}`);
+  if (remote) return remote;
+
   const url = `${OTAKUDESU_URL}/ongoing-anime/page/${page}/`;
   const $ = await fetchHTML(url);
   if (!$) return { anime: [], hasNext: false };
@@ -145,6 +149,9 @@ export async function getOngoingAnime(page = 1) {
 
 // Get completed anime
 export async function getCompletedAnime(page = 1) {
+  const remote = await fetchRemote(`/completed?page=${page}`);
+  if (remote) return remote;
+
   const url = `${OTAKUDESU_URL}/complete-anime/page/${page}/`;
   const $ = await fetchHTML(url);
   if (!$) return { anime: [], hasNext: false };
@@ -172,6 +179,9 @@ export async function getCompletedAnime(page = 1) {
 
 // Get anime detail
 export async function getAnimeDetail(slug) {
+  const remote = await fetchRemote(`/anime/${encodeURIComponent(slug)}`);
+  if (remote) return remote;
+
   const url = `${OTAKUDESU_URL}/anime/${slug}/`;
   const $ = await fetchHTML(url);
   if (!$) return null;
@@ -223,6 +233,9 @@ export async function getAnimeDetail(slug) {
 
 // Get episode streaming links
 export async function getEpisodeStreaming(slug) {
+  const remote = await fetchRemote(`/episode/${encodeURIComponent(slug)}`);
+  if (remote) return remote;
+
   const url = `${OTAKUDESU_URL}/episode/${slug}/`;
   const $ = await fetchHTML(url);
   if (!$) return getFallbackEpisode(slug);
@@ -318,6 +331,9 @@ export async function getEpisodeStreaming(slug) {
 
 // Search anime
 export async function searchAnime(query) {
+  const remote = await fetchRemote(`/search?q=${encodeURIComponent(query)}`);
+  if (remote) return remote;
+
   const url = `${OTAKUDESU_URL}/?s=${encodeURIComponent(query)}&post_type=anime`;
   const $ = await fetchHTML(url);
   if (!$) return [];
@@ -344,6 +360,9 @@ export async function searchAnime(query) {
 
 // Get release schedule (jadwal rilis) — grouped by day of week
 export async function getSchedule() {
+  const remote = await fetchRemote('/schedule');
+  if (remote) return remote;
+
   const url = `${OTAKUDESU_URL}/jadwal-rilis/`;
   const $ = await fetchHTML(url);
   if (!$) return [];
@@ -367,6 +386,9 @@ export async function getSchedule() {
 
 // Get full genre list
 export async function getGenreList() {
+  const remote = await fetchRemote('/genres');
+  if (remote) return remote;
+
   const url = `${OTAKUDESU_URL}/genre-list/`;
   const $ = await fetchHTML(url);
   if (!$) return [];
@@ -418,6 +440,9 @@ export async function getRandomAnimeSlug() {
 
 // Get anime by genre
 export async function getAnimeByGenre(genre, page = 1) {
+  const remote = await fetchRemote(`/genre/${encodeURIComponent(genre)}?page=${page}`);
+  if (remote) return remote;
+
   const url = `${OTAKUDESU_URL}/genres/${genre}/page/${page}/`;
   const $ = await fetchHTML(url);
   if (!$) return { anime: [], hasNext: false };
